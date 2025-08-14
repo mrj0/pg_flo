@@ -29,6 +29,10 @@ type ColumnNotFoundError struct {
 	ColumnName string
 }
 
+type ColumnNotFoundError struct {
+	ColumnName string
+}
+
 // CDCMessage represents a full message for Change Data Capture
 type CDCMessage struct {
 	Type           OperationType
