@@ -100,7 +100,7 @@ func (w *Worker) Start(ctx context.Context) error {
 		Durable:       consumerName,
 		FilterSubject: subject,
 		AckPolicy:     nats.AckExplicitPolicy,
-		MaxDeliver:    20,
+		MaxDeliver:    -1, // keep trying
 		AckWait:       25 * time.Minute,
 		DeliverPolicy: nats.DeliverAllPolicy,
 	}
