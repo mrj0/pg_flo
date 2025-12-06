@@ -134,6 +134,9 @@ func (m *CDCMessage) RemoveColumn(columnName string) error {
 		m.OldTuple.ColumnNum--
 		m.OldTuple.Columns = append(m.OldTuple.Columns[:colIndex], m.OldTuple.Columns[colIndex+1:]...)
 	}
+	if m.CopyData != nil {
+		m.CopyData = append(m.CopyData[:colIndex], m.CopyData[colIndex+1:]...)
+	}
 	return nil
 }
 
