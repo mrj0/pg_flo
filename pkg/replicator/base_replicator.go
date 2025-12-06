@@ -510,15 +510,16 @@ func (r *BaseReplicator) HandleUpdateMessage(msg *pglogrepl.UpdateMessage, lsn p
 	}
 
 	cdcMessage := utils.CDCMessage{
-		Type:           utils.OperationUpdate,
-		Schema:         relation.Namespace,
-		Table:          relation.RelationName,
-		Columns:        relation.Columns,
-		NewTuple:       msg.NewTuple,
-		OldTuple:       msg.OldTuple,
-		LSN:            lsn.String(),
-		EmittedAt:      time.Now(),
-		ToastedColumns: make(map[string]bool),
+		Type:            utils.OperationUpdate,
+		Schema:          relation.Namespace,
+		Table:           relation.RelationName,
+		Columns:         relation.Columns,
+		NewTuple:        msg.NewTuple,
+		OldTuple:        msg.OldTuple,
+		LSN:             lsn.String(),
+		EmittedAt:       time.Now(),
+		ToastedColumns:  make(map[string]bool),
+		ExcludedColumns: make(map[string]bool),
 	}
 
 	for i, col := range relation.Columns {

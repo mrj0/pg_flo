@@ -116,6 +116,9 @@ func (s *PostgresSink) handleInsert(tx pgx.Tx, message *utils.CDCMessage) error 
 	paramIndex := 1
 	for _, col := range message.Columns {
 		value, err := message.GetColumnValue(col.Name, false)
+		if errors.Is(err, utils.ErrExcludedColumn) {
+			continue
+		}
 		if err != nil {
 			return fmt.Errorf("failed to get column value: %w", err)
 		}
@@ -175,6 +178,9 @@ func getWhereConditions(message *utils.CDCMessage, useOldValues bool, startingIn
 	case utils.ReplicationKeyPK, utils.ReplicationKeyUnique:
 		for _, colName := range message.ReplicationKey.Columns {
 			value, err := message.GetColumnValue(colName, useOldValues)
+			if errors.Is(err, utils.ErrExcludedColumn) {
+				continue
+			}
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to get value for key column %s: %w", colName, err)
 			}
@@ -245,6 +251,10 @@ func (s *PostgresSink) handleUpdate(tx pgx.Tx, message *utils.CDCMessage) error 
 		}
 
 		value, err := message.GetColumnValue(column.Name, false)
+		if errors.Is(err, utils.ErrExcludedColumn) {
+			fmt.Printf("column %v is excluded\n", column.Name)
+			continue
+		}
 		if err != nil {
 			return fmt.Errorf("failed to get column value: %w", err)
 		}

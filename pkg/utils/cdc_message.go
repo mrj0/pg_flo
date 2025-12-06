@@ -4,11 +4,14 @@ package utils //nolint:revive // utils is a standard package name
 import (
 	"encoding/gob"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/jackc/pglogrepl"
 )
+
+var ErrExcludedColumn = errors.New("exclude column")
 
 // init registers types with the gob package for encoding/decoding
 func init() {
@@ -29,23 +32,20 @@ type ColumnNotFoundError struct {
 	ColumnName string
 }
 
-type ColumnNotFoundError struct {
-	ColumnName string
-}
-
 // CDCMessage represents a full message for Change Data Capture
 type CDCMessage struct {
-	Type           OperationType
-	Schema         string
-	Table          string
-	Columns        []*pglogrepl.RelationMessageColumn
-	NewTuple       *pglogrepl.TupleData // For WAL messages
-	OldTuple       *pglogrepl.TupleData // For WAL messages
-	CopyData       [][]byte             // For COPY messages
-	ReplicationKey ReplicationKey
-	LSN            string
-	EmittedAt      time.Time
-	ToastedColumns map[string]bool
+	Type            OperationType
+	Schema          string
+	Table           string
+	Columns         []*pglogrepl.RelationMessageColumn
+	NewTuple        *pglogrepl.TupleData // For WAL messages
+	OldTuple        *pglogrepl.TupleData // For WAL messages
+	CopyData        [][]byte             // For COPY messages
+	ReplicationKey  ReplicationKey
+	LSN             string
+	EmittedAt       time.Time
+	ToastedColumns  map[string]bool
+	ExcludedColumns map[string]bool
 }
 
 // GetColumnIndex returns the index of a column by name, or -1 if not found
@@ -60,6 +60,9 @@ func (m *CDCMessage) GetColumnIndex(columnName string) int {
 
 // GetColumnValue gets a column value, optionally using old values for DELETE/UPDATE
 func (m *CDCMessage) GetColumnValue(columnName string, useOldValues bool) (interface{}, error) {
+	if excluded, ok := m.ExcludedColumns[columnName]; ok && excluded {
+		return nil, ErrExcludedColumn
+	}
 	colIndex := m.GetColumnIndex(columnName)
 	if colIndex == -1 {
 		return nil, fmt.Errorf("column %s not found", columnName)
@@ -118,26 +121,10 @@ func (e ColumnNotFoundError) Error() string {
 
 // RemoveColumn removes a column from the message
 func (m *CDCMessage) RemoveColumn(columnName string) error {
-	colIndex := m.GetColumnIndex(columnName)
-	if colIndex == -1 {
-		return ColumnNotFoundError{columnName}
+	if m.ExcludedColumns == nil {
+		m.ExcludedColumns = make(map[string]bool)
 	}
-
-	newColumns := make([]*pglogrepl.RelationMessageColumn, len(m.Columns))
-	copy(newColumns, m.Columns)
-	m.Columns = append(newColumns[:colIndex], newColumns[colIndex+1:]...)
-
-	if m.NewTuple != nil {
-		m.NewTuple.ColumnNum--
-		m.NewTuple.Columns = append(m.NewTuple.Columns[:colIndex], m.NewTuple.Columns[colIndex+1:]...)
-	}
-	if m.OldTuple != nil {
-		m.OldTuple.ColumnNum--
-		m.OldTuple.Columns = append(m.OldTuple.Columns[:colIndex], m.OldTuple.Columns[colIndex+1:]...)
-	}
-	if m.CopyData != nil {
-		m.CopyData = append(m.CopyData[:colIndex], m.CopyData[colIndex+1:]...)
-	}
+	m.ExcludedColumns[columnName] = true
 	return nil
 }
 

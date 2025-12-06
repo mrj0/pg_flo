@@ -1,6 +1,10 @@
 package sinks
 
-import "github.com/pgflo/pg_flo/pkg/utils"
+import (
+	"errors"
+
+	"github.com/pgflo/pg_flo/pkg/utils"
+)
 
 func buildDecodedMessage(message *utils.CDCMessage) (map[string]interface{}, error) {
 	decodedMessage := make(map[string]interface{})
@@ -15,6 +19,9 @@ func buildDecodedMessage(message *utils.CDCMessage) (map[string]interface{}, err
 		newTuple := make(map[string]interface{})
 		for _, col := range message.Columns {
 			value, err := message.GetColumnValue(col.Name, false)
+			if errors.Is(err, utils.ErrExcludedColumn) {
+				continue
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -27,6 +34,9 @@ func buildDecodedMessage(message *utils.CDCMessage) (map[string]interface{}, err
 		oldTuple := make(map[string]interface{})
 		for _, col := range message.Columns {
 			value, err := message.GetColumnValue(col.Name, true)
+			if errors.Is(err, utils.ErrExcludedColumn) {
+				continue
+			}
 			if err != nil {
 				return nil, err
 			}
