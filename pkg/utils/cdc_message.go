@@ -75,7 +75,8 @@ func (m *CDCMessage) GetColumnValue(columnName string, useOldValues bool) (inter
 			return nil, nil
 		}
 
-		return GlobalPostgreSQLTypeConverter.DecodePostgreSQLValue(rawBytes, m.Columns[colIndex].DataType, 1)
+		// todo copy is broken. we'd need to store the tuple type. it sucks having a different struct for copying too
+		return GlobalPostgreSQLTypeConverter.DecodePostgreSQLValue(rawBytes, 0, m.Columns[colIndex].DataType, 1)
 	}
 
 	var data []byte
@@ -87,7 +88,7 @@ func (m *CDCMessage) GetColumnValue(columnName string, useOldValues bool) (inter
 		return nil, fmt.Errorf("no data available for column %s", columnName)
 	}
 
-	return GlobalPostgreSQLTypeConverter.DecodePostgreSQLValue(data, m.Columns[colIndex].DataType, 0)
+	return GlobalPostgreSQLTypeConverter.DecodePostgreSQLValue(data, m.NewTuple.Columns[colIndex].DataType, m.Columns[colIndex].DataType, 0)
 }
 
 // SetColumnValue sets the value of a column (only used by transform rules)

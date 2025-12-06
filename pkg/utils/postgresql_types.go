@@ -20,9 +20,14 @@ func NewPostgreSQLTypeConverter() *PostgreSQLTypeConverter {
 }
 
 // DecodePostgreSQLValue decodes PostgreSQL binary data using pgx natively
-func (c *PostgreSQLTypeConverter) DecodePostgreSQLValue(data []byte, dataTypeOID uint32, format int16) (interface{}, error) {
-	if data == nil {
+func (c *PostgreSQLTypeConverter) DecodePostgreSQLValue(data []byte, tupleDataType uint8, dataTypeOID uint32, format int16) (interface{}, error) {
+	// only if the tuple data type is null should this function return null.
+	// otherwise it is empty even if the bytes are nil.
+	if tupleDataType == pglogrepl.TupleDataTypeNull {
 		return nil, nil
+	}
+	if data == nil {
+		data = []byte{}
 	}
 
 	// For binary format (WAL data), handle complex types that pgx struggles with as strings
@@ -31,7 +36,8 @@ func (c *PostgreSQLTypeConverter) DecodePostgreSQLValue(data []byte, dataTypeOID
 		switch dataTypeOID {
 		case pgtype.Int4ArrayOID, pgtype.Int8ArrayOID, pgtype.TextArrayOID, pgtype.BoolArrayOID,
 			pgtype.Float4ArrayOID, pgtype.Float8ArrayOID, pgtype.NumericArrayOID,
-			pgtype.ByteaArrayOID, pgtype.TimestampArrayOID, pgtype.UUIDArrayOID:
+			pgtype.ByteaArrayOID, pgtype.TimestampArrayOID, pgtype.UUIDArrayOID,
+			pgtype.VarcharOID, pgtype.BPCharOID:
 			// Arrays: preserve exact PostgreSQL representation to avoid multidimensional flattening
 			return string(data), nil
 		case 3908, 3910, 3912, 3904, 3926, 3906: // Range types - tsrange, tstzrange, daterange, int4range, int8range, numrange
