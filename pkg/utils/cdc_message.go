@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pglogrepl"
 )
 
+// ErrExcludedColumn error raised on access of excluded column value
 var ErrExcludedColumn = errors.New("exclude column")
 
 // init registers types with the gob package for encoding/decoding
@@ -40,7 +41,6 @@ type CDCMessage struct {
 	Columns         []*pglogrepl.RelationMessageColumn
 	NewTuple        *pglogrepl.TupleData // For WAL messages
 	OldTuple        *pglogrepl.TupleData // For WAL messages
-	CopyData        [][]byte             // For COPY messages
 	ReplicationKey  ReplicationKey
 	LSN             string
 	EmittedAt       time.Time
@@ -66,20 +66,6 @@ func (m *CDCMessage) GetColumnValue(columnName string, useOldValues bool) (inter
 	colIndex := m.GetColumnIndex(columnName)
 	if colIndex == -1 {
 		return nil, fmt.Errorf("column %s not found", columnName)
-	}
-
-	if !useOldValues && m.CopyData != nil {
-		if colIndex >= len(m.CopyData) {
-			return nil, fmt.Errorf("column index %d out of range for copy data", colIndex)
-		}
-
-		rawBytes := m.CopyData[colIndex]
-		if rawBytes == nil {
-			return nil, nil
-		}
-
-		// todo copy is broken. we'd need to store the tuple type. it sucks having a different struct for copying too
-		return GlobalPostgreSQLTypeConverter.DecodePostgreSQLValue(rawBytes, 0, m.Columns[colIndex].DataType, 1)
 	}
 
 	var data []byte

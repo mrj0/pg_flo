@@ -171,8 +171,6 @@ func getRawColumnData(m *utils.CDCMessage, column string) ([]byte, int) {
 		rawData = m.OldTuple.Columns[colIndex].Data
 	} else if m.NewTuple != nil {
 		rawData = m.NewTuple.Columns[colIndex].Data
-	} else if m.CopyData != nil {
-		rawData = m.CopyData[colIndex]
 	}
 
 	return rawData, colIndex
@@ -184,8 +182,6 @@ func setRawColumnData(m *utils.CDCMessage, colIndex int, data []byte) {
 		m.OldTuple.Columns[colIndex].Data = data
 	} else if m.NewTuple != nil {
 		m.NewTuple.Columns[colIndex].Data = data
-	} else if m.CopyData != nil {
-		m.CopyData[colIndex] = data
 	}
 }
 

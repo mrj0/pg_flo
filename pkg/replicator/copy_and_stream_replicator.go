@@ -3,6 +3,7 @@ package replicator
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -279,14 +280,36 @@ func (r *CopyAndStreamReplicator) executeCopyQuery(ctx context.Context, tx pgx.T
 
 	var copyCount int64
 	for rows.Next() {
+		tuple := pglogrepl.TupleData{}
+		tuple.SetType(pglogrepl.MessageTypeInsert)
+		tuple.Columns = make([]*pglogrepl.TupleDataColumn, len(columns))
 		rawData := rows.RawValues()
+		data, err := rows.Values()
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse row: %v", err)
+		}
+
+		for col, colData := range rawData {
+			tupleType := pglogrepl.TupleDataTypeBinary
+			if data[col] == nil {
+				tupleType = pglogrepl.TupleDataTypeNull
+			}
+			if _, ok := data[col].(string); ok {
+				tupleType = pglogrepl.TupleDataTypeText
+			}
+			tuple.Columns[col] = &pglogrepl.TupleDataColumn{
+				DataType: tupleType,
+				Length:   uint32(len(colData)),
+				Data:     slices.Clone(colData),
+			}
+		}
 
 		cdcMessage := utils.CDCMessage{
 			Type:      utils.OperationInsert,
 			Schema:    schema,
 			Table:     tableName,
 			Columns:   columns,
-			CopyData:  rawData,
+			NewTuple:  &tuple,
 			EmittedAt: time.Now(),
 		}
 
